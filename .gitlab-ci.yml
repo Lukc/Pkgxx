@@ -1,0 +1,16 @@
+stages:
+  - build
+
+alpine3.8-luarocks5.1:
+  stage: build
+  image: alpine:3.8
+  cache: {}
+  script:
+    - apk update
+    - apk add abuild bash build-base git lua-argparse lua-filesystem lua-toml luarocks5.1 moonscript zsh
+    - abuild-keygen -a -n
+    - luarocks-5.1 install split
+    - git clone https://github.com/lukc/build.zsh && cd build.zsh && make && make install && cd .. && rm -rf build.zsh
+    - touch doc/pkgxx.1 doc/package.toml.5 doc.pkgxx.conf.5
+    - make && make install && cp pkgxx.conf.example /etc/pkgxx.conf
+    - sed -i -e 's#.packageManager = .*#.packageManager = "apk"#' -e 's#.distribution = .*#.distribution = "Alpine 3.8"#' /etc/pkgxx.conf
