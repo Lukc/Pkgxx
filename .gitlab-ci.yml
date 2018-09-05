@@ -1,0 +1,59 @@
+stages:
+  - build
+  - test
+
+alpine3.8-luarocks5.1:
+  stage: build
+  image: alpine:3.8
+  cache: {}
+  script:
+    - apk update
+    - apk add abuild bash build-base git lua-argparse lua-filesystem lua-toml luarocks5.1 moonscript zsh
+    - abuild-keygen -a -n
+    - luarocks-5.1 install split
+    - git clone https://github.com/lukc/build.zsh && cd build.zsh && make && make install && cd .. && rm -rf build.zsh
+    - touch doc/pkgxx.1 doc/package.toml.5 doc.pkgxx.conf.5
+    - make && make install && cp pkgxx.conf.example /etc/pkgxx.conf
+    - sed -i -e 's#.packageManager = .*#.packageManager = "apk"#' -e 's#.distribution = .*#.distribution = "Alpine 3.8"#' /etc/pkgxx.conf
+    - cat /etc/pkgxx.conf
+  only:
+    - master
+
+ubuntu18.04:
+  stage: build
+  image: ubuntu:18.04
+  cache: {}
+  script:
+    - apt-get update && apt-get install -y git zsh luarocks lua-filesystem pandoc reprepro
+    - luarocks install moonscript
+    - luarocks install argparse
+    - luarocks install split
+    - luarocks install lua-toml
+    - git clone https://github.com/lukc/build.zsh && cd build.zsh && make && make install && cd .. && rm -rf build.zsh
+    - make && make install && cp pkgxx.conf.example /etc/pkgxx.conf
+    - grep "\-\-\.repositoryManager" /etc/pkgxx.conf && sed -i -e 's#--.repositoryManager =#.repositoryManager =#' /etc/pkgxx.conf
+    - sed -i -e 's#\.packageManager = .*#\.packageManager = "apt"#' -e 's#\.distribution = .*#\.distribution = "Ubuntu 18\.04"#' -e 's#\.repositoryManager = .*#\.repositoryManager = "reprepro"#' /etc/pkgxx.conf
+    - cat /etc/pkgxx.conf
+  only:
+    - master
+
+test-alpine3.8:
+  stage: test
+  image: alpine:3.8
+  cache: {}
+  script:
+    - apk update
+    - apk add abuild bash build-base git lua-argparse lua-filesystem lua-toml luarocks5.1 moonscript zsh
+    - abuild-keygen -a -n
+    - luarocks-5.1 install split
+    - git clone https://github.com/lukc/build.zsh && cd build.zsh && make && make install && cd .. && rm -rf build.zsh
+    - touch doc/pkgxx.1 doc/package.toml.5 doc.pkgxx.conf.5
+    - make && make install && cp pkgxx.conf.example /etc/pkgxx.conf
+    - sed -i -e 's#.packageManager = .*#.packageManager = "apk"#' -e 's#.distribution = .*#.distribution = "Alpine 3.8"#' /etc/pkgxx.conf
+    - cat /etc/pkgxx.conf
+    - apk add lua5.1-dev
+    - luarocks-5.1 install busted
+    - luarocks-5.1 install luacov-coveralls
+    - luarocks-5.1 install luajson
+    - (cd .coveralls; make)
+    - busted --verbose
